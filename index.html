@@ -1,110 +1,271 @@
 <!DOCTYPE html>
-<html lang="en" class="light">
+<html lang="en" class="dark">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ABM AI Chat</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-<style>
-html,body{margin:0;padding:0;font-family:'Inter',sans-serif;min-height:100vh;}
-.message-bubble{max-width:85%;word-wrap:break-word;line-height:1.6;white-space:pre-wrap;}
-.user-msg{background:#2563eb;color:white;border-radius:1.5rem 1.5rem 0.25rem 1.5rem;padding:1rem;}
-.ai-msg{background:#f3f4f6;color:#111;border-radius:1.5rem 1.5rem 1.5rem 0.25rem;padding:1rem;}
-.dark .ai-msg{background:#1e1e1f;color:#eee;}
-pre{padding:1rem;border-radius:0.5rem;overflow-x:auto;font-size:0.875rem;}
-.animate-msg{animation:fadeIn 0.25s ease-out forwards;}
-@keyframes fadeIn{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
-textarea{resize:none;}
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ABM AI | Pro Max</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #0b0b0c; color: #f1f5f9; overflow: hidden; }
+        .glass-input { backdrop-filter: blur(24px); background: rgba(11, 11, 12, 0.85); }
+        .custom-scroll::-webkit-scrollbar { width: 5px; }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #334155; border-radius: 10px; }
+        
+        /* Animations */
+        .recording { animation: pulse 1.5s infinite; color: #ef4444 !important; }
+        @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.5; transform: scale(1.1); } }
+        .slide-up { animation: slideUp 0.4s ease-out forwards; }
+        @keyframes slideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* UI Components */
+        .chat-action-btn { opacity: 0; transition: opacity 0.2s; }
+        .chat-item:hover .chat-action-btn { opacity: 1; }
+        .message-content img { max-width: 100%; border-radius: 12px; margin: 10px 0; border: 1px solid #334155; }
+        pre { background: #1e1e1e !important; padding: 1.25rem; border-radius: 12px; margin: 1rem 0; overflow-x: auto; border: 1px solid #333; }
+        code { font-family: 'Fira Code', monospace; font-size: 0.9em; }
+    </style>
 </head>
-<body class="bg-gray-50 dark:bg-[#131314] text-gray-900 dark:text-gray-100 flex flex-col">
+<body class="dark">
 
-<div id="app" class="flex flex-1 min-h-screen">
+    <div id="app" class="flex h-screen w-full overflow-hidden">
+        <aside id="sidebar" class="fixed inset-y-0 left-0 z-[60] w-72 bg-[#161618] border-r border-slate-800 transform -translate-x-full md:translate-x-0 transition-transform duration-300 flex flex-col shadow-2xl">
+            <div class="p-6 border-b border-slate-800/50">
+                <div class="flex items-center gap-3 mb-6">
+                    <img src="/logo.png" alt="Logo" class="w-10 h-10 rounded-xl border border-slate-700 bg-blue-600">
+                    <span class="font-bold text-xl text-white tracking-tight">ABM AI</span>
+                </div>
+                <button onclick="createNewChat()" class="w-full py-3 bg-blue-600 text-white rounded-2xl font-semibold hover:bg-blue-700 transition-all active:scale-95 shadow-lg shadow-blue-600/20">
+                    + New Chat
+                </button>
+            </div>
+            
+            <div id="chat-list" class="flex-1 overflow-y-auto px-4 py-4 space-y-2 custom-scroll">
+                </div>
 
-<aside id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-[#1e1e1f] border-r border-gray-200 dark:border-gray-800 transform -translate-x-full md:translate-x-0 transition-transform flex flex-col z-40">
-<div class="p-4 flex items-center justify-between">
-<button onclick="createNewChat()" class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-2xl w-full font-semibold">+ New Chat</button>
-</div>
-<div id="chat-list" class="flex-1 overflow-y-auto px-3 space-y-1"></div>
-<div class="p-4 border-t border-gray-200 dark:border-gray-800 space-y-1">
-<button onclick="openSettings()" class="flex items-center gap-3 w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition text-sm">⚙️ Settings</button>
-<button onclick="toggleDarkMode()" class="flex items-center gap-3 w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition text-sm"><span id="dark-mode-icon" class="opacity-70">🌙</span> Appearance</button>
-</div>
-</aside>
+            <div class="p-4 border-t border-slate-800/50 mt-auto space-y-2">
+                <button onclick="clearAllHistory()" class="flex items-center gap-3 w-full p-3 hover:bg-red-900/20 rounded-xl transition-all text-sm font-medium text-red-400 group">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="group-hover:scale-110"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg> 
+                    Clear History
+                </button>
+            </div>
+        </aside>
 
-<main class="flex-1 flex flex-col relative w-full md:ml-72 bg-white dark:bg-[#131314]">
-<header class="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800 z-10">
-<div class="flex items-center gap-3">
-<button onclick="toggleSidebar()" class="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">☰</button>
-<span class="font-bold tracking-tight text-blue-600">ABM AI Chat</span>
-</div>
-<div id="status-pill" class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Connected</div>
-</header>
+        <main class="relative flex-1 flex flex-col h-full w-full md:ml-72 bg-[#0b0b0c]">
+            <header class="h-16 flex items-center justify-between px-6 border-b border-slate-800/50 z-40 bg-[#0b0b0c]/80 backdrop-blur-md">
+                <button onclick="toggleSidebar()" class="md:hidden text-white p-2">☰</button>
+                <div class="flex items-center gap-4">
+                    <select id="quick-model-select" onchange="updateModelSetting(this.value)" class="bg-slate-800 text-xs font-bold px-4 py-2 rounded-full outline-none text-white cursor-pointer border border-slate-700 hover:border-blue-500 transition-all">
+                        <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+                        <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B</option>
+                    </select>
+                </div>
+                <div class="text-[10px] font-bold text-slate-500 uppercase tracking-[0.2em]">ABM Engine v5.0</div>
+            </header>
 
-<div id="chat-window" class="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 pb-40"></div>
+            <div id="chat-window" class="flex-1 overflow-y-auto p-4 md:p-10 space-y-8 custom-scroll scroll-smooth">
+                <div id="welcome-screen" class="h-full flex flex-col items-center justify-center text-center space-y-4">
+                    <div class="w-20 h-20 bg-blue-600 rounded-3xl flex items-center justify-center text-3xl mb-4 shadow-2xl">⚡</div>
+                    <h2 class="text-4xl font-bold text-white">How can I help?</h2>
+                    <p class="text-slate-500 max-w-sm">Vision, Voice, and Speech-to-Text are all active.</p>
+                </div>
+            </div>
 
-<div class="absolute bottom-0 inset-x-0 p-4 md:p-6 bg-gradient-to-t from-white dark:from-[#131314] via-white dark:via-[#131314] to-transparent">
-<div class="max-w-4xl mx-auto relative group">
-<textarea id="user-input" rows="1" placeholder="Ask anything..." class="w-full p-4 pr-14 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1e1e1f] focus:ring-2 focus:ring-blue-500/50 outline-none shadow-sm transition-all min-h-[56px] max-h-48"></textarea>
-<button id="send-btn" onclick="handleSend()" class="absolute right-2 bottom-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all">➤</button>
-</div>
-</div>
-</main>
-</div>
+            <div class="relative z-50 glass-input border-t border-slate-800/50 p-4 md:p-6">
+                <div class="max-w-4xl mx-auto">
+                    <div id="image-preview-container" class="hidden mb-4 flex items-center gap-3 p-2 bg-slate-800/80 rounded-2xl w-fit border border-slate-700 slide-up">
+                        <img id="image-preview" src="#" class="h-20 w-20 object-cover rounded-xl shadow-lg border border-slate-600">
+                        <button onclick="clearImage()" class="text-slate-400 hover:text-red-400 p-2 text-2xl">&times;</button>
+                    </div>
 
-<div id="settings-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
-<div class="bg-white dark:bg-[#1e1e1f] rounded-3xl w-full max-w-md p-8 shadow-2xl border border-gray-100 dark:border-gray-800">
-<div class="flex justify-between items-center mb-6">
-<h2 class="text-xl font-bold">Settings</h2>
-<button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600">✕</button>
-</div>
-<div class="space-y-5">
-<div>
-<label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Model</label>
-<input type="text" id="model-input" class="w-full p-3 rounded-xl border dark:bg-[#131314] dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
-</div>
-<div>
-<label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">System Prompt</label>
-<textarea id="system-prompt-input" rows="3" class="w-full p-3 rounded-xl border dark:bg-[#131314] dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></textarea>
-</div>
-</div>
-<div class="mt-8 flex gap-3">
-<button onclick="saveSettings()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">Save</button>
-</div>
-</div>
-</div>
+                    <div class="relative flex items-end gap-2 bg-[#1c1c1e] rounded-2xl border border-slate-700 p-2 shadow-2xl transition-all focus-within:border-blue-500/50">
+                        <button onclick="document.getElementById('file-input').click()" class="p-3 text-slate-400 hover:text-blue-500 transition-colors">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                        </button>
+                        <input type="file" id="file-input" class="hidden" accept="image/*" onchange="previewFile()">
+                        
+                        <button id="voice-btn" onclick="toggleVoice()" class="p-3 text-slate-400 hover:text-blue-500 transition-colors">
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                        </button>
 
-<script>
-// ---------------- HIDDEN API KEY ----------------
-const HIDDEN_API_KEY = "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"; // <--- replace with your OpenRouter API key
+                        <textarea id="user-input" rows="1" placeholder="Message ABM AI..." class="w-full p-3 bg-transparent text-white outline-none resize-none max-h-48 custom-scroll"></textarea>
+                        
+                        <button onclick="handleSend()" class="p-3 bg-blue-600 text-white rounded-xl hover:bg-blue-500 transition-all active:scale-90 shadow-lg shadow-blue-600/20">
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
 
-let state = {
-  chats: JSON.parse(localStorage.getItem('abm_chats')||'[]'),
-  currentChatId: null,
-  settings: JSON.parse(localStorage.getItem('abm_settings')||JSON.stringify({
-    apiKey: HIDDEN_API_KEY,
-    model: 'deepseek/deepseek-r1:free',
-    systemPrompt: 'You are ABM AI, a helpful assistant.',
-    darkMode: false
-  }))
-};
+    <script>
+        const API_KEY = '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';
+        
+        let state = {
+            chats: JSON.parse(localStorage.getItem('abm_chats') || '[]'),
+            currentChatId: null,
+            settings: JSON.parse(localStorage.getItem('abm_app_settings') || JSON.stringify({ model: 'openai/gpt-4o-mini' })),
+            isRecording: false,
+            currentImageData: null
+        };
 
-// ---------------- UI INIT ----------------
-function init(){
-  if(state.settings.darkMode) document.documentElement.classList.add('dark');
-  renderChatList();
-  if(state.chats.length>0) loadChat(state.chats[0].id);
-  const tx = document.getElementById('user-input');
-  tx.addEventListener('input',function(){this.style.height='auto';this.style.height=this.scrollHeight+'px';});
-  updateStatusPill();
-}
+        const win = document.getElementById('chat-window');
+        const input = document.getElementById('user-input');
 
-// ---------------- STATUS PILL ----------------
-function updateStatusPill(){
-  const pill = document.getElementById('status-pill');
-  if(HIDDEN_API_KEY.length>10){
-    pill.className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+        // VOICE RECOGNITION (STT)
+        const recognition = ('webkitSpeechRecognition' in window) ? new webkitSpeechRecognition() : null;
+        if (recognition) {
+            recognition.continuous = false;
+            recognition.onresult = (e) => { 
+                input.value += e.results[0][0].transcript;
+                input.style.height = input.scrollHeight + 'px';
+                toggleVoice(); 
+            };
+        }
+
+        function toggleVoice() {
+            if (!recognition) return alert("Speech recognition not supported.");
+            state.isRecording = !state.isRecording;
+            document.getElementById('voice-btn').classList.toggle('recording', state.isRecording);
+            state.isRecording ? recognition.start() : recognition.stop();
+        }
+
+        // TEXT TO SPEECH (TTS)
+        function speak(text) {
+            window.speechSynthesis.cancel();
+            const msg = new SpeechSynthesisUtterance(text.replace(/[#*`]/g, ''));
+            msg.rate = 1.0;
+            window.speechSynthesis.speak(msg);
+        }
+
+        // IMAGE HANDLING
+        function previewFile() {
+            const file = document.getElementById('file-input').files[0];
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                state.currentImageData = reader.result;
+                document.getElementById('image-preview').src = reader.result;
+                document.getElementById('image-preview-container').style.display = 'flex';
+            };
+            if (file) reader.readAsDataURL(file);
+        }
+
+        function clearImage() {
+            state.currentImageData = null;
+            document.getElementById('image-preview-container').style.display = 'none';
+            document.getElementById('file-input').value = "";
+        }
+
+        // CORE LOGIC
+        function updateModelSetting(val) {
+            state.settings.model = val;
+            localStorage.setItem('abm_app_settings', JSON.stringify(state.settings));
+        }
+
+        async function handleSend() {
+            const text = input.value.trim();
+            if (!text && !state.currentImageData) return;
+            
+            if (!state.currentChatId) createNewChat();
+            const chat = state.chats.find(c => c.id === state.currentChatId);
+            
+            const userText = text || "Sent an image";
+            const imgData = state.currentImageData;
+            
+            chat.messages.push({ role: 'user', content: text, image: imgData });
+            if (chat.title === 'New Conversation') chat.title = text.substring(0, 25) || "Image Inquiry";
+
+            appendMessageUI('user', userText, imgData);
+            input.value = ''; input.style.height = 'auto';
+            clearImage();
+            renderChatList();
+            saveState();
+
+            // Simulate AI fetch (Replace with your actual fetch logic)
+            const aiBubble = appendMessageUI('assistant', "AI is processing your request...");
+            // ... (Add Fetch API logic here using API_KEY and state.settings.model)
+        }
+
+        function appendMessageUI(role, text, img = null) {
+            document.getElementById('welcome-screen').style.display = 'none';
+            const div = document.createElement('div');
+            div.className = `flex ${role === 'user' ? 'justify-end' : 'justify-start'} mb-6 slide-up`;
+            
+            const isAI = role === 'assistant';
+            div.innerHTML = `
+                <div class="max-w-[85%]">
+                    <div class="p-4 rounded-2xl ${role === 'user' ? 'bg-blue-600 text-white rounded-tr-none' : 'bg-[#1c1c1e] text-slate-200 border border-slate-800 rounded-tl-none shadow-xl'}">
+                        ${img ? `<img src="${img}" class="rounded-xl mb-3 shadow-lg">` : ''}
+                        <div class="text-sm leading-relaxed">${marked.parse(text)}</div>
+                    </div>
+                    ${isAI ? `<button onclick="speak(\`${text.replace(/`/g, '\\`')}\`)" class="mt-2 text-[10px] text-slate-500 hover:text-blue-500 font-bold uppercase tracking-wider flex items-center gap-1">🔊 Read Aloud</button>` : ''}
+                </div>
+            `;
+            win.appendChild(div);
+            win.scrollTop = win.scrollHeight;
+            return div;
+        }
+
+        function renderChatList() {
+            const list = document.getElementById('chat-list'); list.innerHTML = '';
+            state.chats.forEach(chat => {
+                const isActive = chat.id === state.currentChatId;
+                const div = document.createElement('div');
+                div.className = `chat-item flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${isActive ? 'bg-blue-600 text-white' : 'text-slate-400 hover:bg-slate-800'}`;
+                div.innerHTML = `
+                    <span class="truncate text-sm font-medium flex-1" onclick="loadChat('${chat.id}')">${chat.title}</span>
+                    <div class="chat-action-btn flex items-center gap-2">
+                        <button onclick="renameChat('${chat.id}')" class="text-xs hover:text-white">✎</button>
+                    </div>
+                `;
+                list.appendChild(div);
+            });
+        }
+
+        function renameChat(id) {
+            const chat = state.chats.find(c => c.id === id);
+            const newName = prompt("Rename chat:", chat.title);
+            if (newName) { chat.title = newName; saveState(); renderChatList(); }
+        }
+
+        function clearAllHistory() {
+            if (confirm("Delete ALL chat history?")) {
+                localStorage.removeItem('abm_chats');
+                state.chats = [];
+                state.currentChatId = null;
+                win.innerHTML = '';
+                createNewChat();
+            }
+        }
+
+        function createNewChat() {
+            const id = Date.now().toString();
+            state.chats.unshift({ id, title: 'New Conversation', messages: [] });
+            state.currentChatId = id;
+            saveState(); renderChatList();
+            win.innerHTML = ''; 
+        }
+
+        function loadChat(id) {
+            state.currentChatId = id;
+            renderChatList();
+            win.innerHTML = '';
+            const chat = state.chats.find(c => c.id === id);
+            chat.messages.forEach(m => appendMessageUI(m.role, m.content, m.image));
+        }
+
+        function saveState() { localStorage.setItem('abm_chats', JSON.stringify(state.chats)); }
+        function toggleSidebar() { document.getElementById('sidebar').classList.toggle('-translate-x-full'); }
+
+        // Init
+        document.getElementById('quick-model-select').value = state.settings.model;
+        renderChatList();
+        if (state.chats.length > 0) loadChat(state.chats[0].id);
+    </script>
+</body>
+</html>
     pill.innerText="Connected";
   } else {
     pill.className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
