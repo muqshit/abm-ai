@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en" class="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABM AI Chat</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<style>
+html,body{margin:0;padding:0;font-family:'Inter',sans-serif;min-height:100vh;}
+.message-bubble{max-width:85%;word-wrap:break-word;line-height:1.6;white-space:pre-wrap;}
+.user-msg{background:#2563eb;color:white;border-radius:1.5rem 1.5rem 0.25rem 1.5rem;padding:1rem;}
+.ai-msg{background:#f3f4f6;color:#111;border-radius:1.5rem 1.5rem 1.5rem 0.25rem;padding:1rem;}
+.dark .ai-msg{background:#1e1e1f;color:#eee;}
+pre{padding:1rem;border-radius:0.5rem;overflow-x:auto;font-size:0.875rem;}
+.animate-msg{animation:fadeIn 0.25s ease-out forwards;}
+@keyframes fadeIn{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+textarea{resize:none;}
+</style>
+</head>
+<body class="bg-gray-50 dark:bg-[#131314] text-gray-900 dark:text-gray-100 flex flex-col">
+
+<div id="app" class="flex flex-1 min-h-screen">
+
+<aside id="sidebar" class="fixed inset-y-0 left-0 w-72 bg-white dark:bg-[#1e1e1f] border-r border-gray-200 dark:border-gray-800 transform -translate-x-full md:translate-x-0 transition-transform flex flex-col z-40">
+<div class="p-4 flex items-center justify-between">
+<button onclick="createNewChat()" class="flex items-center justify-center gap-2 px-4 py-3 bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-400 hover:bg-blue-100 dark:hover:bg-blue-900/40 rounded-2xl w-full font-semibold">+ New Chat</button>
+</div>
+<div id="chat-list" class="flex-1 overflow-y-auto px-3 space-y-1"></div>
+<div class="p-4 border-t border-gray-200 dark:border-gray-800 space-y-1">
+<button onclick="openSettings()" class="flex items-center gap-3 w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition text-sm">⚙️ Settings</button>
+<button onclick="toggleDarkMode()" class="flex items-center gap-3 w-full p-3 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-xl transition text-sm"><span id="dark-mode-icon" class="opacity-70">🌙</span> Appearance</button>
+</div>
+</aside>
+
+<main class="flex-1 flex flex-col relative w-full md:ml-72 bg-white dark:bg-[#131314]">
+<header class="h-16 flex items-center justify-between px-4 border-b border-gray-100 dark:border-gray-800 z-10">
+<div class="flex items-center gap-3">
+<button onclick="toggleSidebar()" class="md:hidden p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">☰</button>
+<span class="font-bold tracking-tight text-blue-600">ABM AI Chat</span>
+</div>
+<div id="status-pill" class="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">Connected</div>
+</header>
+
+<div id="chat-window" class="flex-1 overflow-y-auto p-4 md:p-10 space-y-6 pb-40"></div>
+
+<div class="absolute bottom-0 inset-x-0 p-4 md:p-6 bg-gradient-to-t from-white dark:from-[#131314] via-white dark:via-[#131314] to-transparent">
+<div class="max-w-4xl mx-auto relative group">
+<textarea id="user-input" rows="1" placeholder="Ask anything..." class="w-full p-4 pr-14 rounded-2xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-[#1e1e1f] focus:ring-2 focus:ring-blue-500/50 outline-none shadow-sm transition-all min-h-[56px] max-h-48"></textarea>
+<button id="send-btn" onclick="handleSend()" class="absolute right-2 bottom-2 p-2.5 bg-blue-600 text-white rounded-xl hover:bg-blue-700 active:scale-95 transition-all">➤</button>
+</div>
+</div>
+</main>
+</div>
+
+<div id="settings-modal" class="fixed inset-0 z-[60] hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-md">
+<div class="bg-white dark:bg-[#1e1e1f] rounded-3xl w-full max-w-md p-8 shadow-2xl border border-gray-100 dark:border-gray-800">
+<div class="flex justify-between items-center mb-6">
+<h2 class="text-xl font-bold">Settings</h2>
+<button onclick="closeSettings()" class="text-gray-400 hover:text-gray-600">✕</button>
+</div>
+<div class="space-y-5">
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">Model</label>
+<input type="text" id="model-input" class="w-full p-3 rounded-xl border dark:bg-[#131314] dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+</div>
+<div>
+<label class="block text-xs font-bold uppercase tracking-wider text-gray-500 mb-2">System Prompt</label>
+<textarea id="system-prompt-input" rows="3" class="w-full p-3 rounded-xl border dark:bg-[#131314] dark:border-gray-700 focus:ring-2 focus:ring-blue-500 outline-none text-sm"></textarea>
+</div>
+</div>
+<div class="mt-8 flex gap-3">
+<button onclick="saveSettings()" class="w-full py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition">Save</button>
+</div>
+</div>
+</div>
+
+<script>
+// ---------------- HIDDEN API KEY ----------------
+const HIDDEN_API_KEY = "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"; // <--- replace with your OpenRouter API key
+
+let state = {
+  chats: JSON.parse(localStorage.getItem('abm_chats')||'[]'),
+  currentChatId: null,
+  settings: JSON.parse(localStorage.getItem('abm_settings')||JSON.stringify({
+    apiKey: HIDDEN_API_KEY,
+    model: 'deepseek/deepseek-r1:free',
+    systemPrompt: 'You are ABM AI, a helpful assistant.',
+    darkMode: false
+  }))
+};
+
+// ---------------- UI INIT ----------------
+function init(){
+  if(state.settings.darkMode) document.documentElement.classList.add('dark');
+  renderChatList();
+  if(state.chats.length>0) loadChat(state.chats[0].id);
+  const tx = document.getElementById('user-input');
+  tx.addEventListener('input',function(){this.style.height='auto';this.style.height=this.scrollHeight+'px';});
+  updateStatusPill();
+}
+
+// ---------------- STATUS PILL ----------------
+function updateStatusPill(){
+  const pill = document.getElementById('status-pill');
+  if(HIDDEN_API_KEY.length>10){
+    pill.className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400";
+    pill.innerText="Connected";
+  } else {
+    pill.className="text-[10px] font-bold uppercase tracking-widest px-2 py-1 rounded-full bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400";
+    pill.innerText="No Key";
+  }
+}
+
+// ---------------- CHAT FUNCTIONS ----------------
+function createNewChat(){
+  const chat={id:Date.now().toString(),title:'New Chat',messages:[]};
+  state.chats.unshift(chat);
+  saveState();
+  loadChat(chat.id);
+  document.getElementById('user-input').focus();
+}
+
+function loadChat(id){
+  state.currentChatId=id;
+  const chat=state.chats.find(c=>c.id===id);
+  const container=document.getElementById('chat-window');
+  container.innerHTML='';
+  if(chat) chat.messages.forEach(msg=>appendMessageUI(msg.role,msg.content));
+  renderChatList();
+}
+
+function appendMessageUI(role,content){
+  const container=document.getElementById('chat-window');
+  const div=document.createElement('div');
+  div.className=`flex ${role==='user'?'justify-end':'justify-start'} animate-msg mb-6`;
+  const inner=document.createElement('div');
+  inner.className=`message-bubble ${role==='user'?'user-msg':'ai-msg'}`;
+  inner.innerHTML=marked.parse(content);
+  div.appendChild(inner);
+  container.appendChild(div);
+  container.scrollTop=container.scrollHeight;
+  return inner;
+}
+
+// ---------------- TYPING ANIMATION ----------------
+async function typeText(el,text,speed=15){
+  el.innerHTML='';
+  for(let i=0;i<text.length;i++){
+    el.innerHTML=marked.parse(text.slice(0,i+1));
+    el.parentElement.parentElement.scrollTop=el.parentElement.parentElement.scrollHeight;
+    await new Promise(r=>setTimeout(r,speed));
+  }
+}
+
+// ---------------- SEND MESSAGE ----------------
+async function handleSend(){
+  const input=document.getElementById('user-input');
+  const btn=document.getElementById('send-btn');
+  const text=input.value.trim();
+  if(!text) return;
+  if(!state.currentChatId) createNewChat();
+  const chat=state.chats.find(c=>c.id===state.currentChatId);
+  chat.messages.push({role:'user',content:text});
+  if(chat.title==='New Chat') chat.title=text.substring(0,30)+'...';
+  input.value=''; input.style.height='auto';
+  appendMessageUI('user',text);
+  btn.disabled=true;
+  const aiBubble=appendMessageUI('assistant','');
+
+  try{
+    const res=await fetch("https://openrouter.ai/api/v1/chat/completions",{
+      method:"POST",
+      headers:{
+        "Authorization":`Bearer ${HIDDEN_API_KEY}`,
+        "Content-Type":"application/json"
+      },
+      body:JSON.stringify({
+        model:state.settings.model,
+        messages:[{role:"system",content:state.settings.systemPrompt},...chat.messages]
+      })
+    });
+    const data=await res.json();
+    const content=data.choices[0].message.content||'';
+    chat.messages.push({role:'assistant',content:content});
+    await typeText(aiBubble,content);
+    saveState();
+  }catch(e){
+    aiBubble.innerHTML='<span class="text-red-500 font-bold">API Error: Check your key.</span>';
+  }finally{
+    btn.disabled=false;
+    renderChatList();
+  }
+}
+
+// ---------------- OTHER UI ----------------
+function toggleSidebar(){document.getElementById('sidebar').classList.toggle('-translate-x-full');}
+function toggleDarkMode(){
+  state.settings.darkMode=!state.settings.darkMode;
+  document.documentElement.classList.toggle('dark');
+  document.getElementById('dark-mode-icon').innerText=state.settings.darkMode?'☀️':'🌙';
+  saveState();
+}
+function renderChatList(){
+  const list=document.getElementById('chat-list'); list.innerHTML='';
+  state.chats.forEach(chat=>{
+    const isActive=chat.id===state.currentChatId;
+    const div=document.createElement('div');
+    div.className=`group flex items-center justify-between p-3 rounded-xl cursor-pointer transition-all ${isActive?'bg-blue-50 dark:bg-blue-900/20 text-blue-600':'hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-500'}`;
+    div.onclick=()=>loadChat(chat.id);
+    div.innerHTML=`<div class="truncate text-sm font-medium pr-2">${chat.title}</div>
+                   <button onclick="deleteChat(event,'${chat.id}')" class="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 text-xs">✕</button>`;
+    list.appendChild(div);
+  });
+}
+function deleteChat(e,id){e.stopPropagation();state.chats=state.chats.filter(c=>c.id!==id);if(state.currentChatId===id)loadChat(state.chats[0]?.id||null);saveState();renderChatList();}
+function openSettings(){
+  document.getElementById('model-input').value=state.settings.model;
+  document.getElementById('system-prompt-input').value=state.settings.systemPrompt;
+  document.getElementById('settings-modal').classList.remove('hidden');
+}
+function closeSettings(){document.getElementById('settings-modal').classList.add('hidden');}
+function saveSettings(){
+  state.settings.model=document.getElementById('model-input').value;
+  state.settings.systemPrompt=document.getElementById('system-prompt-input').value;
+  saveState(); closeSettings();
+}
+function saveState(){
+  localStorage.setItem('abm_chats',JSON.stringify(state.chats));
+  localStorage.setItem('abm_settings',JSON.stringify(state.settings));
+}
+window.addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey&&document.activeElement.id==='user-input'){e.preventDefault();handleSend();}});
+init();
+</script>
+
+</body>
+</html>
